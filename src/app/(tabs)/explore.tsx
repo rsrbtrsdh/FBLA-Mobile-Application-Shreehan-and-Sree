@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -7,7 +8,8 @@ import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
 import { Colors, Radius, ScreenPadding, Spacing, Typography } from '@/constants/theme';
-import { popularDestinations, type Destination } from '@/data/trips';
+import { DESTINATIONS, type Destination } from '@/data/destinations';
+import { cleanText } from '@/validation/rules';
 
 const CATEGORIES = ['All', 'Beaches', 'Mountains', 'Cities'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -18,14 +20,21 @@ function chunkIntoRows<T>(items: T[], size: number): T[][] {
   return rows;
 }
 
+function startTripTo(destination: Destination) {
+  router.push({
+    pathname: '/create-trip',
+    params: { destination: destination.name, country: destination.country, cover: destination.photo },
+  });
+}
+
 export default function ExploreScreen() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<Category>('All');
 
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return popularDestinations.filter(
-      (d: Destination) =>
+    const q = cleanText(query).toLowerCase();
+    return DESTINATIONS.filter(
+      (d) =>
         (category === 'All' || d.category === category) &&
         (q === '' || d.name.toLowerCase().includes(q) || d.country.toLowerCase().includes(q)),
     );
@@ -36,10 +45,10 @@ export default function ExploreScreen() {
       <Text style={[Typography.largeTitle, styles.title]} accessibilityRole="header">
         Explore
       </Text>
-      <Text style={styles.subtitle}>Find inspiration for your next getaway.</Text>
+      <Text style={styles.subtitle}>Group-friendly getaways. Tap one to start planning it.</Text>
 
       <View style={styles.search}>
-        <Icon name="search" size={18} color={Colors.textTertiary} />
+        <Icon name="search" size={18} color={Colors.textSecondary} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -48,6 +57,8 @@ export default function ExploreScreen() {
           style={styles.searchInput}
           returnKeyType="search"
           autoCorrect={false}
+          maxLength={40}
+          accessibilityLabel="Search destinations"
         />
       </View>
 
@@ -61,14 +72,14 @@ export default function ExploreScreen() {
         ))}
       </ScrollView>
 
-      <SectionHeader title="Popular destinations" />
+      <SectionHeader title="Popular with groups" />
       {results.length === 0 ? (
-        <Text style={styles.empty}>No destinations match “{query}”.</Text>
+        <Text style={styles.empty}>No destinations match “{cleanText(query)}”.</Text>
       ) : (
         chunkIntoRows(results, 2).map((row) => (
           <View key={row.map((d) => d.id).join('-')} style={styles.gridRow}>
             {row.map((d) => (
-              <DestinationCard key={d.id} destination={d} />
+              <DestinationCard key={d.id} destination={d} onPress={() => startTripTo(d)} />
             ))}
             {row.length === 1 && <View style={styles.gridSpacer} />}
           </View>

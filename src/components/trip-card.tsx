@@ -1,42 +1,41 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PHOTOS } from '@/constants/photos';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
-import type { Trip } from '@/data/trips';
-import { formatDateRange, nightsBetween, tripCountdown } from '@/utils/dates';
+import type { TripSummary } from '@/models/types';
+import { formatDateRange, nightsBetween, tripCountdown, tripStatus } from '@/utils/dates';
+import { formatMoney } from '@/utils/money';
 
 import { AvatarStack } from './avatar';
 import { Icon } from './icon';
+import { ProgressBar } from './progress-bar';
 
 type TripCardProps = {
-  trip: Trip;
+  trip: TripSummary;
   onPress?: () => void;
 };
 
 export function TripCard({ trip, onPress }: TripCardProps) {
   const nights = nightsBetween(trip.startDate, trip.endDate);
-  const progress = trip.plansTotal > 0 ? trip.plansConfirmed / trip.plansTotal : 0;
-  const travelerLabel = `${trip.travelers.length} ${trip.travelers.length === 1 ? 'traveler' : 'travelers'}`;
+  const status = tripStatus(trip.startDate, trip.endDate);
+  const completed = status === 'completed';
+  const budgetProgress = trip.budgetCents > 0 ? trip.spentCents / trip.budgetCents : 0;
+  const travelerLabel = `${trip.members.length} ${trip.members.length === 1 ? 'traveler' : 'travelers'}`;
+  const dates = formatDateRange(trip.startDate, trip.endDate);
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${trip.destination}, ${trip.country}, ${formatDateRange(trip.startDate, trip.endDate)}`}
+      accessibilityLabel={`${trip.destination}, ${trip.country}. ${dates}. ${tripCountdown(trip.startDate, trip.endDate)}. ${travelerLabel}.`}
+      accessibilityHint="Opens the trip"
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: trip.imageUrl }}
-          style={styles.image}
-          contentFit="cover"
-          transition={250}
-          placeholder={{ blurhash: 'L6Pj0^jE.AyE_3t7t7R**0o#DgR4' }}
-        />
-        <View style={styles.countdown}>
-          <Icon name="plane" size={12} color={Colors.primary} />
-          <Text style={styles.countdownText}>
-            {tripCountdown(trip.startDate, trip.endDate)}
-          </Text>
+        <Image source={PHOTOS[trip.cover].image} style={styles.image} contentFit="cover" transition={200} />
+        <View style={[styles.badge, completed && styles.badgeDone]}>
+          <Icon name={completed ? 'checkCircle' : 'plane'} size={12} color={completed ? Colors.success : Colors.primary} />
+          <Text style={styles.badgeText}>{tripCountdown(trip.startDate, trip.endDate)}</Text>
         </View>
       </View>
 
@@ -51,14 +50,13 @@ export function TripCard({ trip, onPress }: TripCardProps) {
               <Text style={Typography.callout}>{trip.country}</Text>
             </View>
           </View>
-          <Icon name="chevronRight" size={14} color={Colors.textTertiary} />
+          <Icon name="chevronRight" size={14} color={Colors.textSecondary} />
         </View>
 
         <View style={styles.metaRow}>
           <Icon name="calendar" size={13} color={Colors.textSecondary} />
           <Text style={Typography.callout}>
-            {formatDateRange(trip.startDate, trip.endDate)} · {nights}{' '}
-            {nights === 1 ? 'night' : 'nights'}
+            {dates} · {nights} {nights === 1 ? 'night' : 'nights'}
           </Text>
         </View>
 
@@ -66,17 +64,19 @@ export function TripCard({ trip, onPress }: TripCardProps) {
 
         <View style={styles.footer}>
           <View style={styles.travelers}>
-            <AvatarStack people={trip.travelers} />
+            <AvatarStack people={trip.members} />
             <Text style={Typography.caption}>{travelerLabel}</Text>
           </View>
 
           <View style={styles.progressBlock}>
             <Text style={Typography.caption}>
-              {trip.plansConfirmed}/{trip.plansTotal} plans set
+              {formatMoney(trip.spentCents)} of {formatMoney(trip.budgetCents)}
             </Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-            </View>
+            <ProgressBar
+              progress={budgetProgress}
+              width={96}
+              accessibilityLabel={`Budget used: ${Math.round(budgetProgress * 100)} percent`}
+            />
           </View>
         </View>
       </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   imageWrap: {
-    height: 168,
+    height: 160,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     overflow: 'hidden',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  countdown: {
+  badge: {
     position: 'absolute',
     top: Spacing.md,
     left: Spacing.md,
@@ -116,9 +116,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
-  countdownText: {
+  badgeDone: {
+    backgroundColor: Colors.successSoft,
+  },
+  badgeText: {
     fontSize: 12,
     fontWeight: '700',
     color: Colors.text,
@@ -159,17 +162,5 @@ const styles = StyleSheet.create({
   progressBlock: {
     alignItems: 'flex-end',
     gap: 6,
-  },
-  progressTrack: {
-    width: 96,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
   },
 });

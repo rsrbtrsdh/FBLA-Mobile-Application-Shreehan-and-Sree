@@ -24,7 +24,7 @@ export function SectionHeader({ title, count, actionLabel, onActionPress }: Sect
         )}
       </View>
       {actionLabel && (
-        <Pressable onPress={onActionPress} hitSlop={8} accessibilityRole="button">
+        <Pressable onPress={onActionPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={actionLabel}>
           {({ pressed }) => (
             <Text style={[styles.action, pressed && styles.pressed]}>{actionLabel}</Text>
           )}

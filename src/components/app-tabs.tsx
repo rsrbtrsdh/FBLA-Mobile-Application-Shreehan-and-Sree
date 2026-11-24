@@ -53,7 +53,7 @@ type TabButtonProps = TabTriggerSlotProps & { icon: IconName; label: string };
 
 // `ref` is typed for a View, not a Pressable, so it is left off the Pressable.
 function TabButton({ icon, label, isFocused, ref: _ref, ...props }: TabButtonProps) {
-  const color = isFocused ? Colors.primary : Colors.textTertiary;
+  const color = isFocused ? Colors.primary : Colors.textSecondary;
 
   return (
     <Pressable

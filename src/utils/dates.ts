@@ -1,15 +1,42 @@
+import type { TripStatus } from '@/models/types';
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Parses "YYYY-MM-DD" as a local date (new Date("YYYY-MM-DD") would use UTC and can shift a day). */
 export function parseDate(iso: string): Date {
-  const [year, month, day] = iso.split('-').map(Number);
+  const [year, month, day] = iso.split('-').map(Number) as [number, number, number];
   return new Date(year, month - 1, day);
 }
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+/** Local calendar date as "YYYY-MM-DD". */
+export function toIsoDate(date: Date): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
+export function addDays(iso: string, days: number): string {
+  const date = parseDate(iso);
+  date.setDate(date.getDate() + days);
+  return toIsoDate(date);
+}
+
+/** Whole days from `startIso` to `endIso` (DST-safe because both are local midnights). */
+export function daysBetween(startIso: string, endIso: string): number {
+  return Math.round((parseDate(endIso).getTime() - parseDate(startIso).getTime()) / DAY_MS);
+}
+
+export function nightsBetween(startIso: string, endIso: string): number {
+  return daysBetween(startIso, endIso);
+}
+
+/** Every date of the trip, inclusive. */
+export function tripDays(startIso: string, endIso: string): string[] {
+  const days: string[] = [];
+  for (let i = 0; i <= daysBetween(startIso, endIso); i += 1) days.push(addDays(startIso, i));
+  return days;
 }
 
 /** "Dec 18 – 27, 2026", "Mar 29 – Apr 3, 2027" or "Dec 28, 2026 – Jan 4, 2027". */
@@ -22,26 +49,58 @@ export function formatDateRange(startIso: string, endIso: string): string {
   if (start.getFullYear() !== end.getFullYear()) {
     return `${startMonth} ${start.getDate()}, ${start.getFullYear()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
   }
+  if (startIso === endIso) return `${startMonth} ${start.getDate()}, ${start.getFullYear()}`;
   if (start.getMonth() === end.getMonth()) {
     return `${startMonth} ${start.getDate()} – ${end.getDate()}, ${end.getFullYear()}`;
   }
   return `${startMonth} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
 }
 
-export function nightsBetween(startIso: string, endIso: string): number {
-  return Math.round((parseDate(endIso).getTime() - parseDate(startIso).getTime()) / DAY_MS);
+/** "Dec 18" */
+export function formatShortDate(iso: string): string {
+  const date = parseDate(iso);
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
 }
 
-/** Short countdown label for a trip: "Tomorrow", "In 25 days", "Happening now", "Completed". */
-export function tripCountdown(startIso: string, endIso: string, today = new Date()): string {
-  const now = startOfDay(today).getTime();
-  const daysToStart = Math.round((parseDate(startIso).getTime() - now) / DAY_MS);
-  const daysToEnd = Math.round((parseDate(endIso).getTime() - now) / DAY_MS);
+/** "Friday, Dec 18" */
+export function formatDayHeading(iso: string): string {
+  const date = parseDate(iso);
+  return `${WEEKDAYS[date.getDay()]}, ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
 
-  if (daysToEnd < 0) return 'Completed';
-  if (daysToStart <= 0) return 'Happening now';
-  if (daysToStart === 1) return 'Tomorrow';
-  return `In ${daysToStart} days`;
+/** "18:45" -> "6:45 PM" */
+export function formatTime(time: string): string {
+  const [h, m] = time.split(':').map(Number) as [number, number];
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+/** "2:05 PM" today, otherwise "Dec 18, 2:05 PM". */
+export function formatTimestamp(isoDateTime: string, now = new Date()): string {
+  const date = new Date(isoDateTime);
+  const time = formatTime(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
+  if (toIsoDate(date) === toIsoDate(now)) return time;
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${time}`;
+}
+
+export function tripStatus(startIso: string, endIso: string, today = new Date()): TripStatus {
+  const todayIso = toIsoDate(today);
+  if (todayIso > endIso) return 'completed';
+  if (todayIso >= startIso) return 'in-progress';
+  return 'planning';
+}
+
+/** Short countdown label for a trip: "Tomorrow", "In 25 days", "Day 2 of 9", "Completed". */
+export function tripCountdown(startIso: string, endIso: string, today = new Date()): string {
+  const todayIso = toIsoDate(today);
+  const status = tripStatus(startIso, endIso, today);
+  if (status === 'completed') return 'Completed';
+  if (status === 'in-progress') {
+    return `Day ${daysBetween(startIso, todayIso) + 1} of ${daysBetween(startIso, endIso) + 1}`;
+  }
+  const days = daysBetween(todayIso, startIso);
+  return days === 1 ? 'Tomorrow' : `In ${days} days`;
 }
 
 /** "Monday, Nov 23" */

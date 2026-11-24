@@ -1,3 +1,5 @@
+import { router } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -5,15 +7,30 @@ import { Icon } from '@/components/icon';
 import { ListGroup, ListRow } from '@/components/list-row';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
-import { currentUser } from '@/data/trips';
-
-const STATS = [
-  { label: 'Trips', value: currentUser.stats.trips },
-  { label: 'Countries', value: currentUser.stats.countries },
-  { label: 'Friends', value: currentUser.stats.friends },
-];
+import { resetAllData } from '@/data/settings-repository';
+import { travelStats, useCurrentUser, useTripSummaries } from '@/hooks/use-app-data';
+import { confirmAction } from '@/utils/confirm';
 
 export default function ProfileScreen() {
+  const db = useSQLiteContext();
+  const user = useCurrentUser();
+  const { all } = useTripSummaries();
+
+  if (!user.data) return <Screen>{null}</Screen>;
+  const me = user.data;
+  const stats = travelStats(all, me.id);
+
+  const onReset = async () => {
+    const ok = await confirmAction(
+      'Reset TripSync?',
+      'This permanently deletes every trip, expense, message and list saved on this device. It can’t be undone.',
+      'Reset',
+    );
+    if (!ok) return;
+    await resetAllData(db);
+    router.replace('/onboarding');
+  };
+
   return (
     <Screen>
       <Text style={[Typography.largeTitle, styles.title]} accessibilityRole="header">
@@ -21,16 +38,23 @@ export default function ProfileScreen() {
       </Text>
 
       <View style={styles.card}>
-        <Avatar name={currentUser.fullName} color={currentUser.avatarColor} size={76} />
-        <Text style={[Typography.title, styles.name]}>{currentUser.fullName}</Text>
+        <Avatar name={me.name} color={me.color} size={76} />
+        <Text style={[Typography.title, styles.name]}>{me.name}</Text>
         <View style={styles.locationRow}>
-          <Icon name="location" size={13} color={Colors.textSecondary} />
-          <Text style={Typography.callout}>{currentUser.homeCity}</Text>
+          <Icon name="lock" size={12} color={Colors.textSecondary} />
+          <Text style={Typography.callout}>Trips saved privately on this device</Text>
         </View>
 
         <View style={styles.stats}>
-          {STATS.map((stat, index) => (
-            <View key={stat.label} style={[styles.stat, index > 0 && styles.statDivider]}>
+          {[
+            { label: 'Trips', value: stats.trips },
+            { label: 'Countries', value: stats.countries },
+            { label: 'Travel buddies', value: stats.buddies },
+          ].map((stat, index) => (
+            <View
+              key={stat.label}
+              style={[styles.stat, index > 0 && styles.statDivider]}
+              accessibilityLabel={`${stat.value} ${stat.label}`}>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={Typography.caption}>{stat.label}</Text>
             </View>
@@ -40,15 +64,18 @@ export default function ProfileScreen() {
 
       <Text style={[Typography.overline, styles.groupLabel]}>Account</Text>
       <ListGroup>
-        <ListRow icon="edit" label="Edit profile" />
-        <ListRow icon="bell" label="Notifications" detail="On" />
-        <ListRow icon="bookmark" label="Saved places" detail="18" isLast />
+        <ListRow icon="edit" label="Edit name" detail={me.name.split(' ')[0]} onPress={() => router.push('/edit-profile')} isLast />
       </ListGroup>
 
-      <Text style={[Typography.overline, styles.groupLabel]}>Support</Text>
+      <Text style={[Typography.overline, styles.groupLabel]}>About</Text>
       <ListGroup>
-        <ListRow icon="settings" label="Preferences" />
-        <ListRow icon="help" label="Help & feedback" isLast />
+        <ListRow icon="help" label="How to use TripSync" onPress={() => router.push('/help')} />
+        <ListRow icon="copyright" label="Credits & licenses" onPress={() => router.push('/credits')} isLast />
+      </ListGroup>
+
+      <Text style={[Typography.overline, styles.groupLabel]}>Data</Text>
+      <ListGroup>
+        <ListRow icon="refresh" label="Reset app data" onPress={onReset} isLast />
       </ListGroup>
     </Screen>
   );

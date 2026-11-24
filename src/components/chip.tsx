@@ -13,6 +13,7 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ selected }}
       style={({ pressed }) => [
         styles.chip,
@@ -26,7 +27,7 @@ export function Chip({ label, selected = false, onPress }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
-    height: 36,
+    minHeight: 40,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
     alignItems: 'center',

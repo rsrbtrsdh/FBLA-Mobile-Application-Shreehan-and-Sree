@@ -11,7 +11,12 @@ export const Colors = {
   primarySoft: '#EEF1FF',
   accent: '#FF6B4A',
   accentSoft: '#FFF0EC',
-  success: '#16A34A',
+  success: '#15803D',
+  successSoft: '#E8F7EE',
+  warning: '#B45309',
+  warningSoft: '#FEF3E2',
+  danger: '#C62828',
+  dangerSoft: '#FDECEC',
 
   background: '#F6F7FB',
   surface: '#FFFFFF',
@@ -19,7 +24,7 @@ export const Colors = {
   border: '#E7E9F0',
 
   text: '#0F172A',
-  textSecondary: '#64748B',
+  textSecondary: '#56657A', // ≥ 5:1 contrast on background and surface (WCAG AA)
   textTertiary: '#94A3B8',
   textOnPrimary: '#FFFFFF',
 } as const;
